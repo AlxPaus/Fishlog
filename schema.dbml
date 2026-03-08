@@ -1,0 +1,257 @@
+Enum diet_type_enum {
+  predator
+  herbivore
+  omnivore
+  benthivore
+  planktivore
+}
+
+Enum rod_action_enum {
+  extra_fast
+  fast
+  moderate
+  slow
+}
+
+Enum wind_direction_enum {
+  N
+  NE
+  E
+  SE
+  S
+  SW
+  W
+  NW
+  CALM
+}
+
+Enum experience_level_enum {
+  beginner
+  amateur
+  expert
+  pro
+}
+
+Table fish_families {
+  id integer [primary key]
+  name varchar [not null, unique]
+  description text
+}
+
+Table fish_genera {
+  id integer [primary key]
+  family_id integer [ref: > fish_families.id]
+  name varchar [not null]
+}
+
+Table fish_species {
+  id integer [primary key]
+  genus_id integer [ref: > fish_genera.id]
+  common_name varchar [not null]
+  scientific_name varchar
+  diet_type diet_type_enum 
+  avg_weight_kg decimal(5,2)
+  created_at timestamp [default: `now()`]
+}
+
+Table regions {
+  id integer [primary key]
+  name varchar [unique]
+  country_code varchar(3) [default: 'RUS']
+}
+
+Table water_body_types {
+  id integer [primary key]
+  type_name varchar
+}
+
+Table water_bodies {
+  id integer [primary key]
+  region_id integer [ref: > regions.id]
+  type_id integer [ref: > water_body_types.id]
+  name varchar [not null]
+  max_depth_meters decimal(5,2)
+  surface_area_ha decimal(10,2)
+  is_paid_access boolean [default: false]
+  lat decimal(9,6) 
+  lng decimal(9,6)
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+
+  indexes {
+    region_id
+    type_id
+  }
+}
+
+Table anglers {
+  id integer [primary key]
+  nickname varchar [unique, not null]
+  email varchar [unique, not null]
+  experience_level experience_level_enum
+  bio text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  deleted_at timestamp 
+}
+
+Table fishing_sessions {
+  id integer [primary key]
+  water_body_id integer [ref: > water_bodies.id]
+  owner_id integer [ref: > anglers.id]
+  title varchar
+  start_at timestamp [not null]
+  end_at timestamp
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  deleted_at timestamp 
+
+  indexes {
+    water_body_id
+    owner_id
+    start_at
+  }
+}
+
+Table session_participants {
+  session_id integer [ref: > fishing_sessions.id]
+  angler_id integer [ref: > anglers.id]
+  joined_at timestamp [default: `now()`]
+  primary key (session_id, angler_id)
+}
+
+Table gear_manufacturers {
+  id integer [primary key]
+  name varchar [not null]
+  country varchar
+}
+
+Table gear_categories {
+  id integer [primary key]
+  name varchar
+}
+
+Table gear_items {
+  id integer [primary key]
+  category_id integer [ref: > gear_categories.id]
+  manufacturer_id integer [ref: > gear_manufacturers.id]
+  model_name varchar [not null]
+  serial_number varchar
+  purchase_date date
+  created_at timestamp [default: `now()`]
+  deleted_at timestamp 
+
+  indexes {
+    category_id
+    manufacturer_id
+  }
+}
+
+Table rod_specs {
+  id integer [primary key]
+  gear_item_id integer [unique, ref: - gear_items.id]
+  test_min_grams decimal(5,2)
+  test_max_grams decimal(5,2)
+  length_meters decimal(4,2)
+  action_type rod_action_enum
+}
+
+Table lure_types {
+  id integer [primary key]
+  name varchar
+}
+
+Table lures {
+  id integer [primary key]
+  gear_item_id integer [unique, ref: - gear_items.id]
+  lure_type_id integer [ref: > lure_types.id]
+  weight_grams decimal(6,2)
+  color_hex varchar(7) 
+}
+
+Table catches {
+  id integer [primary key]
+  session_id integer [ref: > fishing_sessions.id]
+  species_id integer [ref: > fish_species.id]
+  lure_id integer [ref: > lures.id]
+  angler_id integer [ref: > anglers.id]
+  weight_grams integer [not null]
+  length_cm decimal(5,2)
+  is_released boolean [default: false]
+  caught_at timestamp [not null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  deleted_at timestamp 
+
+  indexes {
+    session_id
+    angler_id
+    species_id
+    caught_at
+  }
+}
+
+Table catch_photos {
+  id integer [primary key]
+  catch_id integer [ref: > catches.id]
+  photo_url varchar [not null]
+  uploaded_at timestamp [default: `now()`]
+  deleted_at timestamp
+}
+
+Table weather_types {
+  id integer [primary key]
+  name varchar 
+}
+
+Table weather_observations {
+  id integer [primary key]
+  session_id integer [ref: > fishing_sessions.id]
+  weather_type_id integer [ref: > weather_types.id]
+  air_temp_c decimal(4,1)
+  pressure_hpa integer
+  wind_speed_ms decimal(4,1)
+  wind_direction wind_direction_enum
+  recorded_at timestamp [default: `now()`]
+
+  indexes {
+    session_id
+  }
+}
+
+Table baits {
+  id integer [primary key]
+  name varchar [not null]
+  is_natural boolean [default: true]
+}
+
+Table groundbait_mixtures {
+  id integer [primary key]
+  session_id integer [ref: > fishing_sessions.id]
+  recipe_name varchar
+  total_volume_liters decimal(5,2)
+  created_at timestamp [default: `now()`]
+}
+
+Table mixture_components {
+  mixture_id integer [ref: > groundbait_mixtures.id]
+  bait_id integer [ref: > baits.id]
+  weight_grams integer
+  primary key (mixture_id, bait_id)
+}
+
+Table seasonal_bans {
+  id integer [primary key]
+  region_id integer [ref: > regions.id]
+  species_id integer [ref: > fish_species.id]
+  start_date date [not null]
+  end_date date [not null]
+  reason text
+  created_at timestamp [default: `now()`]
+
+  indexes {
+    region_id
+    species_id
+  }
+}
