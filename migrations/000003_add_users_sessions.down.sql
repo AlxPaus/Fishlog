@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS session_participants CASCADE;
+DROP TABLE IF EXISTS fishing_sessions CASCADE;
+DROP TABLE IF EXISTS anglers CASCADE;

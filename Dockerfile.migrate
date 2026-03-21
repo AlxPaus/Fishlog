@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar xvz \
+    && mv migrate /usr/local/bin/migrate \
+    && chmod +x /usr/local/bin/migrate
+
+RUN curl -fsSL https://realkarych.github.io/seqwall-apt/public.key | tee /etc/apt/trusted.gpg.d/seqwall.asc \
+    && echo "deb [arch=$(dpkg --print-architecture)] https://realkarych.github.io/seqwall-apt stable main" | tee /etc/apt/sources.list.d/seqwall.list \
+    && apt-get update && apt-get install -y seqwall \
+    && rm -rf /var/lib/apt/lists/*l
+
+RUN pip install --no-cache-dir psycopg2-binary faker
+WORKDIR /app
+COPY migrations/ ./migrations/
+COPY scripts/ ./scripts/
+RUN chmod +x ./scripts/*.sh
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
