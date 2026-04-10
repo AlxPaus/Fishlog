@@ -1,0 +1,14 @@
+FROM alpine:3.18
+
+RUN apk add --no-cache postgresql15-client curl tzdata bash
+
+RUN curl -O https://dl.min.io/client/mc/release/linux-amd64/mc \
+    && chmod +x mc \
+    && mv mc /usr/local/bin/mc
+
+WORKDIR /app
+COPY scripts/ ./scripts/
+
+RUN apk add --no-cache dos2unix && dos2unix ./scripts/*.sh && chmod +x ./scripts/*.sh
+
+ENTRYPOINT ["/app/scripts/backup-cron-entrypoint.sh"]

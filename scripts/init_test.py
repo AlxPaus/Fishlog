@@ -6,7 +6,7 @@ import random
 
 
 multiplier = int(os.environ.get("SEED_COUNT", 1))
-print(f"==> Запуск Cидирования (SEED_COUNT = {multiplier}) ...")
+print(f"Запуск Cидирования (SEED_COUNT = {multiplier}) ...")
 
 fake = Faker('ru_RU')
 try:

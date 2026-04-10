@@ -69,7 +69,7 @@ for _ in range(water_bodies_count):
         VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING;
     """, (region_id, name, max_depth, area))
 
-print("==> Python-сидирование успешно завершено! База наполнена реалистичными данными.")
+print("Cидирование успешно завершено! База наполнена данными.")
 
 cursor.close()
 conn.close()

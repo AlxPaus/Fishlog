@@ -59,3 +59,41 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    
+  minio:
+    image: minio/minio:latest
+    container_name: fishlog_minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_PROMETHEUS_AUTH_TYPE: "public"
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001" 
+    volumes:
+      - ./data/minio:/data
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: fishlog_minio_init
+    env_file:
+      - .env
+    volumes:
+      - ./scripts/minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+    depends_on:
+      - minio
+
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    container_name: fishlog_backup
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - minio-init
+    restart: unless-stopped
