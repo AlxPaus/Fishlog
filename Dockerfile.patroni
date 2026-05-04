@@ -1,0 +1,31 @@
+FROM postgres:16-alpine
+
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    py3-psycopg2 \
+    curl \
+    jq
+
+RUN pip3 install --no-cache-dir --break-system-packages patroni[etcd3]
+
+RUN cat <<'EOF' > /etc/patroni.yml
+bootstrap:
+  dcs:
+    postgresql:
+      use_pg_rewind: true
+      pg_hba:
+        - host all all 0.0.0.0/0 md5
+        - host replication replicator 0.0.0.0/0 md5
+  initdb:
+  - auth-host: md5
+  - auth-local: trust
+  - encoding: UTF8
+  - data-checksums
+EOF
+
+RUN chown postgres:postgres /etc/patroni.yml
+
+USER postgres
+
+CMD ["patroni", "/etc/patroni.yml"]

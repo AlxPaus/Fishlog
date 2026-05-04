@@ -18,7 +18,7 @@ try:
         dbname=os.environ.get("POSTGRES_DB"),
         user=os.environ.get("POSTGRES_USER"),
         password=os.environ.get("POSTGRES_PASSWORD"),
-        host="db",
+        host="haproxy",
         port=os.environ.get("POSTGRES_PORT", 5432)
     )
     conn.autocommit = True

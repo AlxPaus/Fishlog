@@ -1,16 +1,88 @@
+x-patroni-env: &patroni-env
+    PATRONI_SCOPE: fishlog_cluster
+    PATRONI_NAMESPACE: /db
+    PATRONI_ETCD3_HOSTS: etcd:2379
+    PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
+    PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
+    PATRONI_REPLICATION_USERNAME: replicator
+    PATRONI_REPLICATION_PASSWORD: replicator_pass
+    PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
+    PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+    PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+    PATRONI_POSTGRESQL_PG_HBA: "host all all 0.0.0.0/0 md5, host replication replicator 0.0.0.0/0 md5"
+
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: fishlog_db
-    restart: unless-stopped
-    env_file:
-      - .env
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.0
+    container_name: fishlog_etcd
+    environment:
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "2379:2379"
+    restart: unless-stopped
+
+  pg1:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: fishlog_pg1
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg1
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg1:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg1:8008
+    depends_on:
+      - etcd
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./scripts/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh:ro
-      - ./scripts/init-metrics.sql:/docker-entrypoint-initdb.d/init-metrics.sql:ro
+      - pg1_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pg2:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: fishlog_pg2
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg2
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg2:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg2:8008
+    depends_on:
+      - etcd
+    volumes:
+      - pg2_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pg3:
+    build:
+      context: .
+      dockerfile: Dockerfile.patroni
+    container_name: fishlog_pg3
+    environment:
+      <<: *patroni-env
+      PATRONI_NAME: pg3
+      PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg3:5432
+      PATRONI_RESTAPI_CONNECT_ADDRESS: pg3:8008
+    depends_on:
+      - etcd
+    volumes:
+      - pg3_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  haproxy:
+    image: haproxy:2.8
+    container_name: fishlog_haproxy
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "5432:5432" 
+      - "8404:8404" 
+    depends_on:
+      - pg1
+      - pg2
+      - pg3
+    restart: unless-stopped
 
   migrator:
     build:
@@ -20,16 +92,16 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      - haproxy
     restart: "no"
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
     container_name: fishlog_postgres_exporter
     environment:
-      - DATA_SOURCE_NAME=postgresql://postgres_exporter:exporter_password@db:5432/${POSTGRES_DB}?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://postgres_exporter:exporter_password@haproxy:5432/${POSTGRES_DB}?sslmode=disable
     depends_on:
-      - db
+      - haproxy
     restart: unless-stopped
 
   prometheus:
@@ -94,6 +166,11 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      - haproxy
       - minio-init
     restart: unless-stopped
+
+volumes:
+  pg1_data:
+  pg2_data:
+  pg3_data:
