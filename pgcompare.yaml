@@ -1,0 +1,46 @@
+migration:
+  before_version: "5"
+  after_version: "7"
+  env_var: "MIGRATION_VERSION"
+ 
+setup:
+  command: "docker compose down -v && docker compose up -d etcd pg1 pg2 pg3 haproxy && timeout /t 20 && docker compose run --rm -e MIGRATION_VERSION migrator python /app/scripts/seed.py"
+benchmark:
+  before_queries: queries_before.sql
+  after_queries: queries_after.sql
+  repeats: 3
+  warmup_iterations: 5
+  iterations: 200
+  concurrency: 4
+ 
+report:
+  description:
+    - query: q1_top_pike_lakes
+      what: "Поиск топ-5 водоемов по конкретному виду рыбы за период"
+      changes: "Создание индекса на поля species_id, caught_at для быстрого отсева."
+      expected: "Ускорение за счет использования Index Scan вместо Seq Scan."
+
+    - query: q2_heaviest_catch_per_region
+      what: "Поиск самого тяжелого улова в каждом регионе"
+      changes: "Переписывание тяжелой оконной функции ROW_NUMBER на алгоритм с JOIN LATERAL добавление индекса на session_id, weight_grams."
+      expected: "Устранение сортировки всей выборки (Sort). База делает точечный поиск LIMIT 1 для каждого из регионов по индексу."
+
+    - query: q3_recent_expert_catches
+      what: "Выборка последних 100 уловов от опытных рыбаков"
+      changes: "Добавлен индекс на дату поимки и индексы на внешние ключи."
+      expected: "Получение LIMIT 100 по заранее отсортированному B-Tree дереву без сортировки результатов JOIN в памяти."
+
+    - query: q4_monthly_catch_stats
+      what: "Помесячная агрегация и аналитика уловов"
+      changes: "Добавлена материализованная витрина данных mv_daily_catch_stats."
+      expected: "Уменьшение количества читаемых строк за счёт обращения к предрассчитанным по дням данным."
+
+    - query: q5_lakes_without_trophies
+      what: "Поиск водоемов, где не было поймано трофеев > 10кг"
+      changes: "Добавлен частичный индекс по session_id с фильтром WHERE weight_grams > 10000."
+      expected: "Оператор NOT EXISTS выполняется мгновенно, с помощью Index Only Scan."
+
+    - query: q6_angler_running_total
+      what: "Расчет суммы веса уловов по каждому рыбаку"
+      changes: "Создан индекс на поля angler_id, caught_at INCLUDE (weight_grams)."
+      expected: "Полное исчезновение Sort перед вычислением окна, так как данные извлекаются из индекса в уже отсортированном виде."

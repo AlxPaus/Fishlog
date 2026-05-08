@@ -1,15 +1,17 @@
+version: '3.8'
+
 x-patroni-env: &patroni-env
-    PATRONI_SCOPE: fishlog_cluster
-    PATRONI_NAMESPACE: /db
-    PATRONI_ETCD3_HOSTS: etcd:2379
-    PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
-    PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
-    PATRONI_REPLICATION_USERNAME: replicator
-    PATRONI_REPLICATION_PASSWORD: replicator_pass
-    PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
-    PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
-    PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
-    PATRONI_POSTGRESQL_PG_HBA: "host all all 0.0.0.0/0 md5, host replication replicator 0.0.0.0/0 md5"
+  PATRONI_SCOPE: fishlog_cluster
+  PATRONI_NAMESPACE: /db
+  PATRONI_ETCD3_HOSTS: etcd:2379
+  PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
+  PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
+  PATRONI_REPLICATION_USERNAME: replicator
+  PATRONI_REPLICATION_PASSWORD: replicator_pass
+  PATRONI_POSTGRESQL_DATA_DIR: /var/lib/postgresql/data/pgdata
+  PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
+  PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
+  PATRONI_POSTGRESQL_PG_HBA: "host all all 0.0.0.0/0 md5, host replication replicator 0.0.0.0/0 md5"
 
 services:
   etcd:
@@ -76,8 +78,8 @@ services:
     volumes:
       - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
-      - "5432:5432" 
-      - "8404:8404" 
+      - "5432:5432"
+      - "8404:8404"
     depends_on:
       - pg1
       - pg2
@@ -91,9 +93,15 @@ services:
     container_name: fishlog_migrator
     env_file:
       - .env
+    environment:
+      - SEED_COUNT=${SEED_COUNT}  
+    volumes:
+      - ./migrations:/app/migrations
+      - ./scripts/seed.py:/app/scripts/seed.py
     depends_on:
       - haproxy
     restart: "no"
+    
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
@@ -131,7 +139,7 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
-    
+
   minio:
     image: minio/minio:latest
     container_name: fishlog_minio
@@ -142,7 +150,7 @@ services:
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
-      - "9001:9001" 
+      - "9001:9001"
     volumes:
       - ./data/minio:/data
     restart: unless-stopped
