@@ -9,7 +9,7 @@ RUN apk add --no-cache \
 
 RUN pip3 install --no-cache-dir --break-system-packages patroni[etcd3]
 
-RUN cat <<'EOF' > /etc/patroni.yml
+RUN cat <<'EOF' /etc/patroni.yml
 bootstrap:
   dcs:
     postgresql:
