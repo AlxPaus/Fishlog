@@ -140,6 +140,13 @@ services:
       - prometheus
     restart: unless-stopped
 
+  pushgateway:
+    image: prom/pushgateway:latest
+    container_name: pushgateway
+    ports:
+      - "9091:9091"
+    restart: unless-stopped
+
   minio:
     image: minio/minio:latest
     container_name: fishlog_minio

@@ -1,10 +1,9 @@
-FROM alpine:3.18
+FROM minio/mc:latest AS mc-bin
 
-RUN apk add --no-cache postgresql15-client curl tzdata bash
+FROM alpine:3.20
 
-RUN curl -O https://dl.min.io/client/mc/release/linux-amd64/mc \
-    && chmod +x mc \
-    && mv mc /usr/local/bin/mc
+RUN apk add --no-cache postgresql16-client tzdata bash curl
+COPY --from=mc-bin /usr/bin/mc /usr/local/bin/mc
 
 WORKDIR /app
 COPY scripts/ ./scripts/
