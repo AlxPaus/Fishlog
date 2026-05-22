@@ -3,7 +3,7 @@ version: '3.8'
 x-patroni-env: &patroni-env
   PATRONI_SCOPE: fishlog_cluster
   PATRONI_NAMESPACE: /db
-  PATRONI_ETCD3_HOSTS: etcd:2379
+  PATRONI_ETCD3_HOSTS: 'etcd1:2379,etcd2:2379,etcd3:2379'
   PATRONI_SUPERUSER_USERNAME: ${POSTGRES_USER}
   PATRONI_SUPERUSER_PASSWORD: ${POSTGRES_PASSWORD}
   PATRONI_REPLICATION_USERNAME: replicator
@@ -12,16 +12,49 @@ x-patroni-env: &patroni-env
   PATRONI_POSTGRESQL_LISTEN: 0.0.0.0:5432
   PATRONI_RESTAPI_LISTEN: 0.0.0.0:8008
   PATRONI_POSTGRESQL_PG_HBA: "host all all 0.0.0.0/0 md5, host replication replicator 0.0.0.0/0 md5"
-
 services:
-  etcd:
+  etcd1:
     image: quay.io/coreos/etcd:v3.5.0
-    container_name: fishlog_etcd
+    container_name: fishlog_etcd1
     environment:
+      - ETCD_NAME=etcd1
       - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_CLUSTER_TOKEN=fishlog-etcd-cluster
     ports:
       - "2379:2379"
+    restart: unless-stopped
+
+  etcd2:
+    image: quay.io/coreos/etcd:v3.5.0
+    container_name: fishlog_etcd2
+    environment:
+      - ETCD_NAME=etcd2
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd2:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd2:2380
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_CLUSTER_TOKEN=fishlog-etcd-cluster
+    restart: unless-stopped
+
+  etcd3:
+    image: quay.io/coreos/etcd:v3.5.0
+    container_name: fishlog_etcd3
+    environment:
+      - ETCD_NAME=etcd3
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd3:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_CLUSTER_TOKEN=fishlog-etcd-cluster
     restart: unless-stopped
 
   pg1:
@@ -35,7 +68,9 @@ services:
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg1:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg1:8008
     depends_on:
-      - etcd
+      - etcd1
+      - etcd2
+      - etcd3
     volumes:
       - pg1_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -51,7 +86,9 @@ services:
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg2:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg2:8008
     depends_on:
-      - etcd
+      - etcd1
+      - etcd2
+      - etcd3
     volumes:
       - pg2_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -67,7 +104,9 @@ services:
       PATRONI_POSTGRESQL_CONNECT_ADDRESS: pg3:5432
       PATRONI_RESTAPI_CONNECT_ADDRESS: pg3:8008
     depends_on:
-      - etcd
+      - etcd1
+      - etcd2
+      - etcd3
     volumes:
       - pg3_data:/var/lib/postgresql/data
     restart: unless-stopped
